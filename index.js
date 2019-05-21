@@ -94,13 +94,15 @@ oHeaders.callback = function(err, res, done)
         if(304 ==  res.statusCode && bR)
         {
             var aF = /(http[s]?:\/\/[^\/]+)(\/.*)$/gmi.exec(res.options.uri);
-            
             if(fs.existsSync(szPath + aF[2] + szIndex))
             console.log("parse " + szPath + aF[2] + szIndex),fnDoHtmlFile(fs.readFileSync(szPath + aF[2] + szIndex).toString(), res.options.uri);
             aF = null;
         }
         else if(404 ==  res.statusCode)
+        {
+            // how fix gbk?
             console.log([res.options.uri, res.statusCode]);
+        }
     }
     // save file, push 
     else if(res.statusCode == 200)
