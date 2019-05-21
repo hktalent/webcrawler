@@ -1,0 +1,27 @@
+{
+  "name": "webcrawler",
+  "version": "1.0.0",
+  "description": "web crawler",
+  "main": "index.js",
+  "dependencies": {
+    "commander": "^2.20.0",
+    "crawler": "^1.2.1"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "node index.js -u http://www.tuicool.com/articles/N3uMfyi -h \"xx: xxx\" -o ./nodeT/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hktalent/webcrawler.git"
+  },
+  "keywords": [
+    "webcrawler"
+  ],
+  "author": "Hktalent3135773",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/hktalent/webcrawler/issues"
+  },
+  "homepage": "https://github.com/hktalent/webcrawler#readme"
+}
