@@ -109,7 +109,9 @@ oHeaders.callback = function(err, res, done)
     {
         res.options.uri = fnEDUrl(res.options.uri, decodeURI);
         var oHdTmp = res.headers,aF = /(http[s]?:\/\/[^\/]+)(\/.*)$/gmi.exec(res.options.uri);
-        fs.mkdirSync(szPath + aF[2].replace(/\/[^\/]*$/gmi,'/'),{recursive:true});
+        var xxs = szPath + aF[2].replace(/\/[^\/]*$/gmi,'/');
+        if(!fs.existsSync(xxs))
+           fs.mkdirSync(xxs,{recursive:true});
         // 解析，并进行钻取
         if(/^text\/html/g.test(oHdTmp['content-type']))
         {
