@@ -2,14 +2,12 @@
 var fs = require('fs'),
     Crawler = require("crawler"),
     n_maxLs = 333,
+    inherits = require('util').inherits,
     EventEmitter = require('events').EventEmitter,
 	program = require('commander');
 
 
 EventEmitter.prototype._maxListeners = n_maxLs;
-var _fnNull = function(e){if(program && program.verbose)console.log(e)};
-process.on('uncaughtException', _fnNull);
-process.on('unhandledRejection', _fnNull);
 
 EventEmitter.defaultMaxListeners = n_maxLs;
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
@@ -19,10 +17,16 @@ program.version("web crawler 1.0")
     .option('-u, --url [value]', 'url')
     .option('-r, --recursive', 'directories recursively')
     .option('-m, --max [value]', 'mac connections ')
+    .option('-v, --verbose', 'show logs')
 	.option('-t, --timeout [value]', 'timeout,default 3s')
 	.option('-o, --out [value]', 'out path')
 	.parse(process.argv);
 
+    var _fnNull = function(e){if(program && program.verbose)console.log(e)};
+process.on('uncaughtException', _fnNull);
+process.on('unhandledRejection', _fnNull);
+
+    
 function fnDoUrl(program)
 {
 // headers
@@ -103,9 +107,10 @@ oHeaders.callback = function(err, res, done)
     {
         if(304 ==  res.statusCode && bR)
         {
-            var aF = /(http[s]?:\/\/[^\/]+)(\/.*)$/gmi.exec(res.options.uri);
-            if(fs.existsSync(szPath + aF[2] + szIndex))
-            console.log("parse " + szPath + aF[2] + szIndex),fnDoHtmlFile(fs.readFileSync(szPath + aF[2] + szIndex).toString(), res.options.uri);
+            var aF = /(http[s]?:\/\/[^\/]+)(\/.*)$/gmi.exec(res.options.uri),szTmp = '';
+            if(fs.existsSync(szTmp = szPath + aF[2] + szIndex))
+                console.log("parse " + szTmp),
+                fnDoHtmlFile(fs.readFileSync(szTmp).toString(), res.options.uri);
             aF = null;
         }
         else if(404 ==  res.statusCode)
@@ -140,6 +145,7 @@ oHeaders.callback = function(err, res, done)
         {
             fs.utimes(szFnT,oDate, oDate,(e)=>{});
         });
+        // res.pipe(oTs);
         oTs.write(res.body);
     }
     done();
