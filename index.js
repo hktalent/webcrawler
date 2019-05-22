@@ -1,11 +1,19 @@
 #!/usr/bin/env node
 var fs = require('fs'),
     Crawler = require("crawler"),
+    n_maxLs = 333,
+    EventEmitter = require('events').EventEmitter,
 	program = require('commander');
 
-/*
 
-*/
+EventEmitter.prototype._maxListeners = n_maxLs;
+var _fnNull = function(e){if(program && program.verbose)console.log(e)};
+process.on('uncaughtException', _fnNull);
+process.on('unhandledRejection', _fnNull);
+
+EventEmitter.defaultMaxListeners = n_maxLs;
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+
 program.version("web crawler 1.0")
 	.option('-h, --header [value]', 'http header')
     .option('-u, --url [value]', 'url')
@@ -15,8 +23,10 @@ program.version("web crawler 1.0")
 	.option('-o, --out [value]', 'out path')
 	.parse(process.argv);
 
+function fnDoUrl(program)
+{
 // headers
-var oHds = {"content-encoding":"none","connection": "close","user-agent":"SVN/1.30(x66_win)serf/9"}, 
+var oHds = {"content-encoding":"none","connection": "close","user-agent":"Mozilla/5.0 (win; Intel ms win 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36"}, 
     c = null,
     bR = program.recursive || false,
     szIndex = ".index.html",
@@ -142,3 +152,8 @@ if(program.url)
         uri:program.url
     });
 }
+
+}
+if(program.url)fnDoUrl(program)
+inherits(fnDoUrl, EventEmitter);
+module.exports = fnDoUrl;
