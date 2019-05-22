@@ -60,7 +60,7 @@ function fnEDUrl(uri,fnCbk)
     
     aF[2] = aF[2].replace(/([^\/]+)/gmi, function(a,b)
     {
-        a = fnCbk(a);
+        try{a = fnCbk(a);}catch(e){}
         // console.log(a)
         return a
     });
