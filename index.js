@@ -101,6 +101,7 @@ oHeaders.callback = function(err, res, done)
     if(err)
     {
         console.log(err);
+        done();
         return;
     }
     if(200 != res.statusCode)
