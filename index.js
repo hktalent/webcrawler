@@ -72,17 +72,35 @@ function fnDoHtmlFile(body, url)
     var s = body.toString(), aR = / href=["']([^"'><]+)["']/gmi,aT;
     while(aT = aR.exec(s))
     {
-        if("../" == aT[1])continue;
-        c.queue({
-            uri: fnEDUrl(url +  aT[1],decodeURI)
-        });
+        if("../" == aT[1] || "#" == aT[1]|| "/" == aT[1] || -1 < aT[1].indexOf("javascript:"))continue;
+        if(aT[1].startsWith("http"))
+        {
+            if(-1 == aT[1].indexOf(url))continue;
+            else c.queue({
+                uri: fnEDUrl(aT[1],decodeURI)
+            });
+        }
+        else
+        {
+            // console.log(aT[1])
+            c.queue({
+                uri: fnEDUrl(url +  aT[1],decodeURI)
+            });
+        }
     }
 }
 
 // If-Modified-Since
 oHeaders.preRequest = function(options, done) {
-    var aF = /(http[s]?:\/\/[^\/]+)(\/.*)$/gmi.exec(options.uri),
-    oStat = fs.existsSync(szPath + aF[2]) && fs.statSync(szPath + aF[2]) ||
+    
+    var aF = /(http[s]?:\/\/[^\/]+)(\/.*)$/gmi.exec(options.uri);
+    if(aF && 2 < aF.length)
+    {
+        aF[2] = aF[2].replace(/\/+/gmi, "/");
+        options.uri = aF[1] + aF[2];
+    }
+    // console.log(aF)
+    var oStat = fs.existsSync(szPath + aF[2]) && fs.statSync(szPath + aF[2]) ||
         fs.existsSync(szPath + aF[2] + szIndex) && fs.statSync(szPath + aF[2] + szIndex) || null;
     if(oStat)
     {
