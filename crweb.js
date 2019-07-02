@@ -2,6 +2,9 @@
 var fs = require('fs'),
     Crawler = require("crawler"),
     n_maxLs = 333,
+    level = require('level'),path = require('path'),
+    g_url = require('url'),
+    g_oUrls = {},
     inherits = require('util').inherits,
     EventEmitter = require('events').EventEmitter,
 	program = require('commander');
@@ -38,6 +41,16 @@ var oHds = {"content-encoding":"none","connection": "close","user-agent":"Mozill
     szPath = program.out || "./",
     oHeaders = {
         headers:oHds,
+        retries:2,
+        skipDuplicates:true,
+        agent: false, pool: {maxSockets: 200},
+        agentOptions: {
+            rejectUnauthorized: false
+          },
+        rejectUnauthorized:false,
+        followRedirect:true,     // follow HTTP 3xx responses as redirects (default: true).
+        followAllRedirects:false,// follow non-GET HTTP 3xx responses as redirects (default: false)
+        'connection':'close',
         maxConnections:program.max || 33,
         encoding:null,
         jQuery:false,
@@ -67,47 +80,67 @@ function fnEDUrl(uri,fnCbk)
     });
     return aF[1] + aF[2];
 }
+function parseUrl(url)
+{
+    var oU = g_url.parse(url);
+    if(!oU.port)
+    {
+        if("https:" == oU.protocol)
+        {
+            oU.port = 443;
+        }
+        else //if("http" == oU.protocol)
+            oU.port = 80;
+    }
+    return oU;
+}
+
+var dbPath = process.env.DB_PATH || path.join(__dirname, 'mydb1'),
+    db = level(dbPath);
+function doQueue(s)
+{
+    var hst = parseUrl(s);
+    // console.log(hst)
+    s = [hst.protocol,"//", hst.hostname,":",hst.port || 80,"/"].join("");
+    if(!(/(\.gov)|(\.edu)|((\d{1,3}\.){3}\d{1,3})/gmi.test(hst.hostname)))
+    {
+        // console.log("skip: " + hst.hostname)
+        return;
+    }
+    // console.log(s)
+    db.get(s, function(err, value) {  
+        if (err || !value)
+        {
+            db.put(s,1, function(err) {  
+                if (err) {
+                    console.error('error putting key 1:', err);
+                }
+            });
+            if(!g_oUrls[s])
+            c.queue({
+                uri: fnEDUrl(s,decodeURI)
+            });
+            g_oUrls[s]="1";
+        }
+    });
+}
+
 
 function fnDoHtmlFile(body, url)
 {
-    var s = body.toString(), aR = /\bhref=["']([^"'><]+)["']/gmi,aT;
-    var fnFck = function(s)
-    {
-        if(program.filter)
-        {
-            var r = new RegExp(program.filter,"gmi");
-            if(r.test(s))
-            {
-                // console.log("filter: " + s)
-                return;
-            }
-        }
-        // console.log(s)
-        c.queue({
-            uri: fnEDUrl(s,decodeURI)
-        });
-    }
+    var s = body.toString(), aR = /\b(http(s)*:\/\/[^"'><]+)\b/gmi,aT;
+    var fnFck = doQueue;
     var odU = url;
     while(aT = aR.exec(s))
     {
         url = odU;
-        if("../" == aT[1] || "#" == aT[1]|| "/" == aT[1] || -1 < aT[1].indexOf("javascript:"))continue;
+        // if("../" == aT[1] || "#" == aT[1]|| "/" == aT[1] || -1 < aT[1].indexOf("javascript:"))continue;
         // console.log("=======" + aT[1])
         if(aT[1].startsWith("http"))
         {
-            if(-1 == aT[1].indexOf(url))continue;
-            else fnFck(aT[1]);
-        }
-        else
-        {
-            // console.log(url)
-            // console.log(aT[1])
-            if(aT[1].startsWith("/"))
-            {
-                var n = url.indexOf("/",11);
-                if(-1 < n)url = url.substr(0, n + 1);
-            }
-            fnFck(url +  aT[1]);
+            // if(-1 < aT[1].indexOf(url))continue;
+            // else 
+            fnFck(aT[1]);
         }
     }
 }
@@ -115,6 +148,7 @@ function fnDoHtmlFile(body, url)
 // If-Modified-Since
 oHeaders.preRequest = function(options, done) {
     
+    // console.log(options)
     var aF = /(http[s]?:\/\/[^\/]+)(\/.*)$/gmi.exec(options.uri);
     if(aF && 2 < aF.length)
     {
@@ -122,6 +156,7 @@ oHeaders.preRequest = function(options, done) {
         options.uri = aF[1] + aF[2];
     }
     // console.log(aF)
+    // console.log(szPath)
     var oStat = fs.existsSync(szPath + aF[2]) && fs.statSync(szPath + aF[2]) ||
         fs.existsSync(szPath + aF[2] + szIndex) && fs.statSync(szPath + aF[2] + szIndex) || null;
     if(oStat)
@@ -170,29 +205,14 @@ oHeaders.callback = function(err, res, done)
     {
         res.options.uri = fnEDUrl(res.options.uri, decodeURI);
         var oHdTmp = res.headers,aF = /(http[s]?:\/\/[^\/]+)(\/.*)$/gmi.exec(res.options.uri);
-        var xxs = szPath + aF[2].replace(/\/[^\/]*$/gmi,'/');
-        if(!fs.existsSync(xxs))
-           fs.mkdirSync(xxs,{recursive:true});
+        // var xxs = szPath + aF[2].replace(/\/[^\/]*$/gmi,'/');
+        // if(!fs.existsSync(xxs))
+        //    fs.mkdirSync(xxs,{recursive:true});
         // 解析，并进行钻取
         if(/text\/html/g.test(oHdTmp['content-type']))
         {
             fnDoHtmlFile(res.body, res.options.uri);
         }
-        // date: 'Mon, 20 May 2019 16:00:57 GMT',
-        var oDate = null;
-        // console.log(oHdTmp['date'])
-        if(oHdTmp['date'])oDate = new Date(oHdTmp['date']);
-        else oDate = new Date();
-        // console.log(res.body.toString())
-        if(aF[2].endsWith("/"))aF[2] += szIndex;
-        var szFnT = szPath + aF[2],
-            oTs = fs.createWriteStream(szFnT);
-        oTs.on("finish",function()
-        {
-            fs.utimes(szFnT,oDate, oDate,(e)=>{});
-        });
-        // res.pipe(oTs);
-        oTs.write(res.body);
     }
     done();
 };
